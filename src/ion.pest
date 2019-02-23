@@ -1,0 +1,25 @@
+WHITESPACE = _{(" "|"\t"|"\\\n")}
+ExpEnd = _{("\n"|";")}
+
+Char = _{!("\""|"\\"|"$")~ANY}
+Chars = {Char+}
+VarName = ${("_"|LETTER)~(LETTER|NUMBER|"_")*}
+
+Escape = {"\\" ~ ANY}
+DollarExp = {("${"~VarName~"}"|"$"~VarName)}
+
+QuotedString = ${"\""~ (Escape|DollarExp|Chars)*~ "\""}
+SingleQuotedString = ${"'" ~!("'")~ANY~"'"}
+String = {(QuotedString |SingleQuotedString|VarName)}
+
+
+
+Let = {"let "~VarName~"="~Expression}
+If = {"if "~Expression~ ExpEnd ~ Statement*~ ("else" ~Statement*)? ~"end"}
+
+Expression = {(String|DollarExp|VarName)}
+
+Statement = {(Let|If|Expression) ~ ExpEnd}
+
+
+
