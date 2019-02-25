@@ -1,25 +1,104 @@
-WHITESPACE = _{(" "|"\t"|"\\\n")}
-ExpEnd = _{("\n"|";")}
+/// Ion PEG ///
 
-Char = _{!("\""|"\\"|"$")~ANY}
-Chars = {Char+}
-VarName = ${("_"|LETTER)~(LETTER|NUMBER|"_")*}
+WHITESPACE = {" " | "\t"}
+alpha      = { 'a'..'z' | 'A'..'Z' | "_" }
+digit      = { '0'..'9' }
+Escape     = {"\\" ~ ANY}
 
-Escape = {"\\" ~ ANY}
-DollarExp = {("${"~VarName~"}"|"$"~VarName)}
+// Keyword definitions
+KeyWord = _{ End 
+           | Let 
+           | Match | Case 
+           | If | ElseIf | Else 
+           | For | In
+           | While
+           | Fn }
+  End    = { "end" }
+  Let    = { "let" }
+  Match  = { "match" }
+  Case   = { "case" }
+  If     = { "if" }
+  Else   = { "else" }
+  ElseIf = { "else if" }
+  For    = { "for" }
+  In     = { "in" }
+  While  = { "while" }
+  Fn     = { "fn" }
 
-QuotedString = ${"\""~ (Escape|DollarExp|Chars)*~ "\""}
-SingleQuotedString = ${"'" ~!("'")~ANY~"'"}
-String = {(QuotedString |SingleQuotedString|VarName)}
+Sep = { ";" | "\n" }
+
+// Variable definitions
+Ident = ${ alpha+ ~ digit* }
+// TODO:Should we disable whitespace here?
+Value = ${ (!Sep ~ ANY)+ } 
+
+Variable = ${ Ident ~ TypeAnotate? }
+  TypeIdent   = { Ident }
+  TypeAnotate = { ":" ~ TypeIdent }
+  
+Variables = { Variable+ }
+
+Range = _{NumRange | Eval}
+  NumRange = {"[" ~ Value? ~".." ~Value? ~"]"}
 
 
+// TODO: glob, proc, brace
+Eval = _{ ArrayEval | VarEval | StringEval}
+  StringEval = ${"\""~ (Escape|Eval|(!"\""~ANY)*~ "\""}
+  ArrayEval = ${ "@" ~ Ident}
+  VarEval   = ${ "$" ~ Ident}
 
-Let = {"let "~VarName~"="~Expression}
-If = {"if "~Expression~ ExpEnd ~ Statement*~ ("else" ~Statement*)? ~"end"}
+// Assignemnt operations
+// TODO: typed Value
+Assignment = _{ (Assign 
+                | IncAssign 
+                | DecAssign 
+                | MulAssign 
+                | DivAssign) ~ Value }
+  Assign    = { "=" }
+  IncAssign = { "+=" }
+  DecAssign = { "-=" }
+  MulAssign = { "*=" }
+  DivAssign = { "/=" }
 
-Expression = {(String|DollarExp|VarName)}
+// Statement definitions
+// TODO: remove `Sep` from statements
+// Added command for calls to programs that don't need to return a result
+// at end becuase keywords should be checked first.
+Statement  = { StatementLet | Block | (!KeyWord~ Command) }
+Statements = { (Statement ~ Sep)+ }
+Block      = _{ StatementFn 
+              | StatementMatch 
+              | StatementIf 
+              | StatementFor
+              | StatementWhile }
 
-Statement = {(Let|If|Expression) ~ ExpEnd}
 
+  Command = {Ident~(Value|Eval)+}
+  // TODO: missing optional func description
+  StatementFn = { Fn ~ Ident ~ Variables? ~ Statements? ~ End }
+  
+  StatementLet = { Let ~ Variables ~ Assignment }
+  
+  StatementMatch = { Match ~ Eval ~ Sep ~ Cases ~ End }
+    Cases         = { StatementCase* }
+    StatementCase = { (Case ~ Value ~ Statements?) 
+                    | ("default" ~ Statements?) }
+                    
+  // TODO: `Predicate` + LogicOps
+  StatementIf = { If ~ Pred ~ Sep ~ Statements? 
+                ~ StatementElseIf* 
+                ~ StatementElse? 
+                ~ End }
+    Pred            = { Ident }
+    StatementElseIf = { ElseIf ~ Pred ~ Sep ~ Statements? }
+    StatementElse   = { Else ~ Sep ~ Statements? }
+    
+  // TODO: do not use Ident
+  StatementFor = { For ~ Ident+ ~ In ~ Eval ~ Sep ~ Statements? ~ End }
+  
+  StatementWhile = { While ~ Eval ~ Sep ~ Statements? ~ End }
 
+/// Parse script ///
+main = { SOI ~ Statements? ~ EOI }
 
