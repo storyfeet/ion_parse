@@ -1,4 +1,5 @@
-/// Ion PEG ///
+/// Ion PEG Language Specification ///
+/// ------------------------------ ///
 
 WHITESPACE = {" " | "\t"}
 alpha      = { 'a'..'z' | 'A'..'Z' | "_" }
@@ -6,12 +7,13 @@ digit      = { '0'..'9' }
 Escape     = {"\\" ~ ANY}
 
 // Keyword definitions
-KeyWord = _{ End 
-           | Let 
-           | Match | Case 
-           | If | ElseIf | Else 
+KeyWord = _{ End
+           | Let
+           | Match | Case
+           | If | ElseIf | Else
            | For | In
            | While
+	   | Break | Continue
            | Fn }
   End    = { "end" }
   Let    = { "let" }
@@ -23,38 +25,97 @@ KeyWord = _{ End
   For    = { "for" }
   In     = { "in" }
   While  = { "while" }
+  Break  = { "break" }
+  Continue  = { "continue" }
   Fn     = { "fn" }
 
 Sep = { ";" | "\n" }
+Ident = ${ alpha+ ~ digit* }
 
 // Variable definitions
-Ident = ${ alpha+ ~ digit* }
-// TODO:Should we disable whitespace here?
-Value = ${ (!Sep ~ ANY)+ } 
+// ---------------------------
+// A variable is defined as an identifier and an optional colon `:` separated
+// variable type, that can be either a primitive or array-like type.
+//
+Variable = ${ Ident ~ TypeAnotate }
+  TypeAnotate = { ":" ~ Type  | Untyped }
+  Untyped     = { "" }
+  Type        = { Primitive | ArrayLike }
+    Primitive = { "bool" | "int"| "float" | "str" }
+    ArrayLike = { Primitive~"[]" | "[]" | "hmap[]" | "bmap[]" }
 
-Variable = ${ Ident ~ TypeAnotate? }
-  TypeIdent   = { Ident }
-  TypeAnotate = { ":" ~ TypeIdent }
-  
 Variables = { Variable+ }
 
-Range = _{NumRange | Eval}
-  NumRange = {"[" ~ digit* ~".." ~digit* ~"]"}
+// Range operators
+// ---------------------------
+// Ion supports inclusive `...` and exclusive `..` range operators, with optional
+// step size. The step size follows the range start by `..STEP` format.
+//
+// Example:
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// for i in 10..-2...-2
+//    echo $i
+// end
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+RangeOp = _{ RangeIn | RangeEx }
+  RangeIn = { "..." }
+  RangeEx = { ".." }
+RangeVal  = { "-"? ~ (digit+ | Eval) }
+RangeStep = ${ ".." ~ RangeVal }
+Range = _{ RangeVal ~ RangeStep? ~ RangeOp ~ RangeVal }
 
 
 // TODO: glob, proc, brace
 Eval = _{ ArrayEval | VarEval | StringEval}
   StringEval = ${"\""~ (Escape|Eval|(!"\""~ANY))*~ "\""}
-  ArrayEval = ${ "@" ~ Ident}
-  VarEval   = ${ "$" ~ Ident}
+  ArrayEval  = ${ "@" ~ Ident}
+  VarEval    = ${ "$" ~ Ident}
+
+// Helpers for parsing literals
+// ----------------------------
+//
+Sign = _{ SignNeg | SignPlus }
+  SignPlus = { "+" | "" }
+  SignNeg  = { "-" }
+
+FloatFrac = { digit }
+FloatSep = { "." }
+
+// TODO: add helpers for arrays
+
+Literal = _{ LitFloat
+           | LitInt
+           | LitBool
+           | LitStr
+           | LitArrayLike
+           | LitUntyped }
+  LitInt = { Sign ~ digit+ }
+  LitFloat = { Sign ~ (digit* ~ FloatSep ~ FloatFrac+
+                      | digit+ ~ FloatSep ~ FloatFrac*) }
+  LitBool    = { "false" | "true" }
+  // TODO: DQUOTE str can contain `Eval`s
+  LitStr     = ${ ("\"" ~ ANY* ~ "\"" | "'" ~ ANY* ~ "'") }
+  LitUntyped = ${ (!Sep ~ ANY)+ }
+
+// TODO: array, map
+  LitArrayLike = ${ "[]" }
+
+
 
 // Assignemnt operations
-// TODO: typed Value
-Assignment = _{ (Assign 
-                | IncAssign 
-                | DecAssign 
-                | MulAssign 
-                | DivAssign) ~ Value }
+// ---------------------------
+// Ion assignments are done via `let` statements. The assigned value
+// if unquoted and contains whitespace assumed to be string, unless
+// the LHS pattern matches
+//
+// For more on assignments read the `let` statement description.
+//
+Assignment = _{ (Assign
+                | IncAssign
+                | DecAssign
+                | MulAssign
+                | DivAssign) ~ (Eval | Literal) }
   Assign    = { "=" }
   IncAssign = { "+=" }
   DecAssign = { "-=" }
@@ -65,40 +126,39 @@ Assignment = _{ (Assign
 // TODO: remove `Sep` from statements
 // Added command for calls to programs that don't need to return a result
 // at end becuase keywords should be checked first.
-Statement  = { StatementLet | Block | (!KeyWord~ Command) }
+Statement  = { Break | Continue | StatementLet | Block | (!KeyWord~ Command) }
 Statements = { (Statement ~ Sep)+ }
-Block      = _{ StatementFn 
-              | StatementMatch 
-              | StatementIf 
+Block      = _{ StatementFn
+              | StatementMatch
+              | StatementIf
               | StatementFor
               | StatementWhile }
 
 
-  Command = {Ident~(Value|Eval)+}
+  Command = {Ident~(Literal|Eval)+}
   // TODO: missing optional func description
   StatementFn = { Fn ~ Ident ~ Variables? ~ Statements? ~ End }
-  
+
   StatementLet = { Let ~ Variables ~ Assignment }
-  
+
   StatementMatch = { Match ~ Eval ~ Sep ~ Cases ~ End }
     Cases         = { StatementCase* }
-    StatementCase = { (Case ~ Value ~ Statements?) 
+    StatementCase = { (Case ~ Literal ~ Statements?)
                     | ("default" ~ Statements?) }
-                    
+
   // TODO: `Predicate` + LogicOps
-  StatementIf = { If ~ Pred ~ Sep ~ Statements? 
-                ~ StatementElseIf* 
-                ~ StatementElse? 
+  StatementIf = { If ~ Pred ~ Sep ~ Statements?
+                ~ StatementElseIf*
+                ~ StatementElse?
                 ~ End }
     Pred            = { Ident }
     StatementElseIf = { ElseIf ~ Pred ~ Sep ~ Statements? }
     StatementElse   = { Else ~ Sep ~ Statements? }
-    
+
   // TODO: do not use Ident
-  StatementFor = { For ~ Ident+ ~ In ~ Range}// ~ Sep ~ Statements? ~ End }
-  
+  StatementFor = { For ~ Ident+ ~ In ~ Range ~ Sep ~ Statements? ~ End }
+
   StatementWhile = { While ~ Eval ~ Sep ~ Statements? ~ End }
 
 /// Parse script ///
 main = { SOI ~ Statements? ~ EOI }
-
