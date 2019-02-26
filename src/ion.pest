@@ -5,51 +5,53 @@ WHITESPACE = {" " | "\t"}
 alpha      = { 'a'..'z' | 'A'..'Z' | "_" }
 digit      = { '0'..'9' }
 Escape     = {"\\" ~ ANY}
+Comment    = { "#"* ~ ANY* ~ "\n" }
 
 // Keyword definitions
 KeyWord = _{ End
            | Let
            | Match | Case
            | If | ElseIf | Else
+	   | And | Or
            | For | In
            | While
 	   | Break | Continue
            | Fn }
-  End    = { "end" }
-  Let    = { "let" }
-  Match  = { "match" }
-  Case   = { "case" }
-  If     = { "if" }
-  Else   = { "else" }
-  ElseIf = { "else if" }
-  For    = { "for" }
-  In     = { "in" }
-  While  = { "while" }
-  Break  = { "break" }
-  Continue  = { "continue" }
-  Fn     = { "fn" }
+  End      = { "end" }
+  Let      = { "let" }
+  Match    = { "match" }
+  Case     = { "case" }
+  If       = { "if" }
+  Else     = { "else" }
+  ElseIf   = { "else if" }
+  And      = { "and" | "&&" }
+  Or       = { "or" | "||" }
+  For      = { "for" }
+  In       = { "in" }
+  While    = { "while" }
+  Break    = { "break" }
+  Continue = { "continue" }
+  Fn       = { "fn" }
 
 Sep = { ";" | "\n" }
-Ident = ${ alpha+ ~ digit* }
+Ident = ${ !KeyWord ~ alpha+ ~ digit* }
 
 // Variable definitions
 // ---------------------------
 // A variable is defined as an identifier and an optional colon `:` separated
 // variable type, that can be either a primitive or array-like type.
 //
-Variable = ${ Ident ~ TypeAnotate }
-  TypeAnotate = { ":" ~ Type  | Untyped }
-  Untyped     = { "" }
-  Type        = { Primitive | ArrayLike }
+Variable = ${ Ident ~ (":" ~ Type)? }
+  Type = { ArrayLike | Primitive  }
     Primitive = { "bool" | "int"| "float" | "str" }
-    ArrayLike = { Primitive~"[]" | "[]" | "hmap[]" | "bmap[]" }
+    ArrayLike = ${ Primitive~"[]" | "[]" | "hmap[]" | "bmap[]" }
 
 Variables = { Variable+ }
 
 // Range operators
 // ---------------------------
-// Ion supports inclusive `...` and exclusive `..` range operators, with optional
-// step size. The step size follows the range start by `..STEP` format.
+// Ion supports inclusive `...` or `..=` and exclusive `..` range operators,
+// with optional step size. The step size follows the range start by `..STEP` format.
 //
 // Example:
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,18 +61,22 @@ Variables = { Variable+ }
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
 RangeOp = _{ RangeIn | RangeEx }
-  RangeIn = { "..." }
+  RangeIn = { "..." | "..=" }
   RangeEx = { ".." }
-RangeVal  = { "-"? ~ (digit+ | Eval) }
+RangeVal  = ${ LitInt | Sign? ~ Eval }
 RangeStep = ${ ".." ~ RangeVal }
-Range = _{ RangeVal ~ RangeStep? ~ RangeOp ~ RangeVal }
+Range = ${ RangeVal ~ RangeStep? ~ RangeOp ~ RangeVal }
 
 
-// TODO: glob, proc, brace
+// TODO: glob, proc, brace (braces don't expand inside strings)
+//
+// glob: *, ?,
+// proc: $(), @()
+// brace: {word1,word1}
 Eval = _{ ArrayEval | VarEval | StringEval}
   StringEval = ${"\""~ (Escape|Eval|(!"\""~ANY))*~ "\""}
-  ArrayEval  = ${ "@" ~ Ident}
-  VarEval    = ${ "$" ~ Ident}
+  ArrayEval  = ${ "@" ~ Ident | "@{" ~ Ident ~ "}" }
+  VarEval    = ${ "$" ~ Ident | "${" ~ Ident ~ "}" }
 
 // Helpers for parsing literals
 // ----------------------------
@@ -82,24 +88,29 @@ Sign = _{ SignNeg | SignPlus }
 FloatFrac = { digit }
 FloatSep = { "." }
 
-// TODO: add helpers for arrays
-
 Literal = _{ LitFloat
            | LitInt
            | LitBool
            | LitStr
            | LitArrayLike
            | LitUntyped }
-  LitInt = { Sign ~ digit+ }
-  LitFloat = { Sign ~ (digit* ~ FloatSep ~ FloatFrac+
-                      | digit+ ~ FloatSep ~ FloatFrac*) }
-  LitBool    = { "false" | "true" }
-  // TODO: DQUOTE str can contain `Eval`s
+  LitInt     = ${ Sign ~ digit+ }
+  LitFloat   = ${ Sign ~ (digit* ~ FloatSep ~ FloatFrac+
+                         | digit+ ~ FloatSep ~ FloatFrac*) }
+  LitBool    = ${ "false" | "true" }
+  // TODO: DQUOTE str shouldn't be ANY, see StringEval
   LitStr     = ${ ("\"" ~ ANY* ~ "\"" | "'" ~ ANY* ~ "'") }
   LitUntyped = ${ (!Sep ~ ANY)+ }
 
-// TODO: array, map
-  LitArrayLike = ${ "[]" }
+// TODO: lit map, probably untyped
+  LitArrayLike = _{ LitMap | LitArray | UntypedArray }
+    LitArray     = _{ RangeArray | FloatArray | IntArray }
+      // XXX: not supported right now?
+      RangeArray = { "[" ~ Range ~ "]" }
+      FloatArray = { "["~ LitFloat+ ~ "]" }
+      IntArray   = { "[" ~ LitInt+ ~ "]" }
+    LitMap       = {"[" ~ "]"}
+    UntypedArray = { "[" ~ ANY* ~ "]" }
 
 
 
@@ -123,42 +134,61 @@ Assignment = _{ (Assign
   DivAssign = { "/=" }
 
 // Statement definitions
-// TODO: remove `Sep` from statements
+// TODO: add missing And, Or
 // Added command for calls to programs that don't need to return a result
 // at end becuase keywords should be checked first.
-Statement  = { Break | Continue | StatementLet | Block | (!KeyWord~ Command) }
+Statement  = { StatementLet | Block } // | (!KeyWord~ Command) }
 Statements = { (Statement ~ Sep)+ }
+LoopBody   = { ((Break | Continue)~Sep)+ | Statements }
 Block      = _{ StatementFn
               | StatementMatch
               | StatementIf
               | StatementFor
               | StatementWhile }
 
-
   Command = {Ident~(Literal|Eval)+}
-  // TODO: missing optional func description
-  StatementFn = { Fn ~ Ident ~ Variables? ~ Statements? ~ End }
 
+  // Function syntax
+  //
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // fn func x y:int z:[] -- descrption
+  //     # BODY
+  // end
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // TODO: missing optional func description
+  StatementFn = { Fn ~ Ident ~ Variables? ~ Sep ~ Statements? ~ End }
+
+  // Let syntax
+  //
+  // Assignments are done via `let` statements, where `let` supports
+  // multiple value assignments, reassignments with mathematical operations
+  // and indexed assignments on array-like types.
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // let x:float y:[] = 3.14 [3 1 4]
+  // let x += .86
+  // let y[0] = "hello"
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // TODO: indexed assignment rule
   StatementLet = { Let ~ Variables ~ Assignment }
 
   StatementMatch = { Match ~ Eval ~ Sep ~ Cases ~ End }
     Cases         = { StatementCase* }
-    StatementCase = { (Case ~ Literal ~ Statements?)
-                    | ("default" ~ Statements?) }
+    StatementCase = { (Case ~ "_" | Case ~ (Literal | Eval))
+                      ~ Sep ~ Statements? }
 
   // TODO: `Predicate` + LogicOps
   StatementIf = { If ~ Pred ~ Sep ~ Statements?
                 ~ StatementElseIf*
                 ~ StatementElse?
                 ~ End }
-    Pred            = { Ident }
+    Pred            = { Eval }
     StatementElseIf = { ElseIf ~ Pred ~ Sep ~ Statements? }
     StatementElse   = { Else ~ Sep ~ Statements? }
 
   // TODO: do not use Ident
-  StatementFor = { For ~ Ident+ ~ In ~ Range ~ Sep ~ Statements? ~ End }
+  StatementFor = { For ~ Ident+ ~ In ~ Range ~ Sep ~ LoopBody? ~ End }
 
-  StatementWhile = { While ~ Eval ~ Sep ~ Statements? ~ End }
+  StatementWhile = { While ~ Eval ~ Sep ~ LoopBody? ~ End }
 
 /// Parse script ///
 main = { SOI ~ Statements? ~ EOI }
