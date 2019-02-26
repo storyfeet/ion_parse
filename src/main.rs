@@ -36,8 +36,21 @@ mod tests {
             (Rule::Statement, "let x = 4"),
             (Rule::Statement, "for x in [0..4]; echo $x; end;"),
             (Rule::Statement, "for x in [0..4]\n echo $x\n end;"),
+            (
+                Rule::Statement,
+                "for x y hotel in [0..100]\n let b = \"$(x)oo\";echo b; end;",
+            ),
+            (Rule::Statement, "mayfail -p hello && isok"),
+            (Rule::Statement, "echo $build(3 5 9)"),
+            (Rule::Statement, "ls -l"),
+            (Rule::Statement, "home/dir/"),
+            (Rule::Statement, "./home/dir"),
+            (Rule::Statement, "/dev/etc"),
+            (Rule::Statement, "~/Documents/files"),
+            (Rule::Statement, "cd ~/Documents/My\\ Pictures"),
             (Rule::Range, "[0..4]"),
             (Rule::Range, "$(ls -l)"),
+            (Rule::Range, "[0..$s]"),
         ];
 
         let mut errs = Vec::new();
@@ -61,6 +74,7 @@ mod tests {
             (Rule::Statement, "for x in ls -l; echo $x; end;"),
             (Rule::Statement, "for x in [0..4]\n echo $x\n end;"),
             (Rule::Range, "[0..Green]"),
+            (Rule::Range "["),
             (Rule::Range, "$(ls -l)"),
         ];
 
