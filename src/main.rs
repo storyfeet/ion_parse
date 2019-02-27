@@ -1,5 +1,7 @@
 mod pesto;
 use crate::pesto::Rule;
+
+use std::io::BufRead;
 use clap::{clap_app, crate_version};
 
 use pest::Parser;
@@ -19,11 +21,16 @@ fn main() {
 
     println!("Rule = {:?}", rule);
 
+    let stdin = std::io::stdin();
+    let mut stdin = stdin.lock();
+    let mut buf = String::with_capacity(32);
     loop {
-        let mut s = String::new();
-        std::io::stdin().read_line(&mut s).ok();
-        let r = pesto::Command::parse(rule, &s).expect("Parse fail");
-        println!("res = {:?}", r);
+        stdin.read_line(&mut buf).ok();
+        match pesto::Command::parse(rule, &buf) {
+            Ok(res) => println!("res = {:?}", res),
+            Err(e) => println!("{}", e),
+        }
+        buf.truncate(0);
     }
 }
 
