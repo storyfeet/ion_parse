@@ -60,12 +60,14 @@ Variables = { Variable+ }
 // end
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-RangeOp = _{ RangeIn | RangeEx }
-  RangeIn = { "..." | "..=" }
+RangeOp = _{ (RangeIn | RangeEx) }
+  RangeIn = { ("..." | "..=") }
   RangeEx = { ".." }
-RangeVal  = ${ LitInt | Sign? ~ Eval }
+RangeVal  = ${ LitInt | (Sign? ~ Eval) }
 RangeStep = ${ ".." ~ RangeVal }
-Range = ${ RangeVal ~ RangeStep? ~ RangeOp ~ RangeVal }
+//The parser doesn't go back within a group if the parse succeeds,
+//so requiring RangeOp for a step to count makes it work.
+Range = ${ RangeVal ~ ((RangeStep ~ RangeOp)|RangeOp) ~ RangeVal }
 
 
 // TODO: glob, proc, brace (braces don't expand inside strings)

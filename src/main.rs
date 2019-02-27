@@ -1,8 +1,8 @@
 mod pesto;
 use crate::pesto::Rule;
 
-use std::io::BufRead;
 use clap::{clap_app, crate_version};
+use std::io::BufRead;
 
 use pest::Parser;
 fn main() {
@@ -41,8 +41,8 @@ mod tests {
     fn should_pass() {
         let v = vec![
             (Rule::Statement, "let x = 4"),
-            (Rule::Statement, "for x in [0..4]; echo $x; end;"),
-            (Rule::Statement, "for x in [0..4]\n echo $x\n end;"),
+            (Rule::Statement, "for x in 0..4; echo $x; end;"),
+            (Rule::Statement, "for x in 0..4\n echo $x\n end;"),
             (
                 Rule::Statement,
                 "for x y hotel in [0..100]\n let b = \"$(x)oo\";echo b; end;",
@@ -55,9 +55,12 @@ mod tests {
             (Rule::Statement, "/dev/etc"),
             (Rule::Statement, "~/Documents/files"),
             (Rule::Statement, "cd ~/Documents/My\\ Pictures"),
-            (Rule::Range, "[0..4]"),
+            (Rule::Range, "0..4"),
+            (Rule::Range, "0...4"),
+            (Rule::Range, "0..3..9"),
+            (Rule::Range, "10..-2..=0"),
             (Rule::Range, "$(ls -l)"),
-            (Rule::Range, "[0..$s]"),
+            (Rule::Range, "0..$s"),
         ];
 
         let mut errs = Vec::new();
@@ -81,7 +84,7 @@ mod tests {
             (Rule::Statement, "for x in ls -l; echo $x; end;"),
             (Rule::Statement, "for x in [0..4]\n echo $x\n end;"),
             (Rule::Range, "[0..Green]"),
-            (Rule::Range "["),
+            (Rule::Range, "["),
             (Rule::Range, "$(ls -l)"),
         ];
 
