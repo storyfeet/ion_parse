@@ -139,9 +139,9 @@ Assignment = _{ (Assign
 // TODO: add missing And, Or
 // Added command for calls to programs that don't need to return a result
 // at end becuase keywords should be checked first.
-Statement  = { StatementLet | Block } // | (!KeyWord~ Command) }
-Statements = { (Statement ~ Sep)+ }
-LoopBody   = { ((Break | Continue)~Sep)+ | Statements }
+Statement  = { StatementLet | Block |( !KeyWord ~ Command )}
+Statements = { Statement ~ (Sep+ ~ Statement)* ~  Sep? }
+LoopBody   = { ((Break | Continue |Statement )~Sep+)+}
 Block      = _{ StatementFn
               | StatementMatch
               | StatementIf
@@ -188,9 +188,9 @@ Block      = _{ StatementFn
     StatementElse   = { Else ~ Sep ~ Statements? }
 
   // TODO: do not use Ident
-  StatementFor = { For ~ Ident+ ~ In ~ Range ~ Sep ~ LoopBody? ~ End }
+  StatementFor = { For ~ Ident+ ~ In ~ Range ~ Sep ~ Statements? ~ End }
 
   StatementWhile = { While ~ Eval ~ Sep ~ LoopBody? ~ End }
 
 /// Parse script ///
-main = { SOI ~ Statements? ~ EOI }
+Main = { SOI ~ Statements? ~ EOI }
