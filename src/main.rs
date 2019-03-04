@@ -14,9 +14,13 @@ fn main() {
     )
     .get_matches();
 
-    let rule = match cp.value_of("rule").unwrap_or("Statement") {
+    let rule = match cp.value_of("rule").unwrap_or("Main") {
         "Range" => Rule::Range,
-        _ => Rule::Statement,
+        "Statement" => Rule::Statement,
+        "Statements" => Rule::Statements,
+        "Path" => Rule::Path,
+
+        _ => Rule::Main,
     };
 
     println!("Rule = {:?}", rule);
@@ -44,15 +48,17 @@ mod tests {
             (Rule::Statement, "echo $x"),
             (Rule::Main, "echo $x"),
             (Rule::Main, "for x in 0..4;echo $x; end;"),
-            (Rule::Statement, "for x in 0..4\n echo $x\n end;"),
+            (Rule::Statement, "for x in 0..4\n echo $x\n end"),
             (
                 Rule::Statement,
-                "for x y hotel in 0..100\n let b = \"$(x)oo\";echo b; end;",
+                "for x y hotel in 0..100\n let b = \"$(x)oo\";echo b; end",
             ),
-            (Rule::Statement, "mayfail -p hello && isok"),
+            (Rule::Main, "mayfail -p hello && isok"),
+            (Rule::Main, "mayfail p hello && isok"),
             (Rule::Statement, "echo $build(3 5 9)"),
             (Rule::Statement, "ls -l"),
-            (Rule::Statement, "home/dir/"),
+            (Rule::Path, "home/dir/"),
+            (Rule::Main, "home/dir/"),
             (Rule::Statement, "./home/dir"),
             (Rule::Statement, "/dev/etc"),
             (Rule::Statement, "~/Documents/files"),
@@ -88,6 +94,8 @@ mod tests {
             (Rule::Range, "[0..Green]"),
             (Rule::Range, "["),
             (Rule::Range, "$(ls -l)"),
+            (Rule::Path, "home/dir"),
+            (Rule::Main, "home/dir"),
         ];
 
         let mut errs = Vec::new();

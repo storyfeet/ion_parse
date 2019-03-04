@@ -2,8 +2,8 @@
 /// ------------------------------ ///
 
 WHITESPACE = {" " | "\t"}
-alpha      = { 'a'..'z' | 'A'..'Z' | "_" }
-digit      = { '0'..'9' }
+alpha      = _{ 'a'..'z' | 'A'..'Z' | "_"| "-" }
+digit      = _{ '0'..'9' }
 Escape     = {"\\" ~ ANY}
 Comment    = { "#"* ~ ANY* ~ "\n" }
 
@@ -33,8 +33,8 @@ KeyWord = _{ End
   Continue = { "continue" }
   Fn       = { "fn" }
 
-Sep = { ";" | "\n" }
-Ident = ${ !KeyWord ~ alpha+ ~ digit* }
+Sep = { ";" | "\n" | "&&" }
+Ident = ${ !KeyWord ~ alpha+ ~ (alpha|digit)* }
 
 // Variable definitions
 // ---------------------------
@@ -79,6 +79,9 @@ Eval = _{ ArrayEval | VarEval | StringEval}
   StringEval = ${"\""~ (Escape|Eval|(!"\""~ANY))*~ "\""}
   ArrayEval  = ${ "@" ~ Ident | "@{" ~ Ident ~ "}" }
   VarEval    = ${ "$" ~ Ident | "${" ~ Ident ~ "}" }
+  
+path_mem   = _{ alpha | digit | "\\ " |"."}
+Path = ${( ("~/"|"./"|"/") ~ (path_mem+ ~ "/")* ~"/"? )}
 
 // Helpers for parsing literals
 // ----------------------------
@@ -95,7 +98,7 @@ Literal = _{ LitFloat
            | LitBool
            | LitStr
            | LitArrayLike
-           | LitUntyped }
+           }
   LitInt     = ${ Sign ~ digit+ }
   LitFloat   = ${ Sign ~ (digit* ~ FloatSep ~ FloatFrac+
                          | digit+ ~ FloatSep ~ FloatFrac*) }
@@ -103,6 +106,7 @@ Literal = _{ LitFloat
   // TODO: DQUOTE str shouldn't be ANY, see StringEval
   LitStr     = ${ ("\"" ~ ANY* ~ "\"" | "'" ~ ANY* ~ "'") }
   LitUntyped = ${ (!Sep ~ ANY)+ }
+  //Not sure Literal Untyped makes sense, it will pass anything and that will be hard to use
 
 // TODO: lit map, probably untyped
   LitArrayLike = _{ LitMap | LitArray | UntypedArray }
@@ -139,7 +143,7 @@ Assignment = _{ (Assign
 // TODO: add missing And, Or
 // Added command for calls to programs that don't need to return a result
 // at end becuase keywords should be checked first.
-Statement  = { StatementLet | Block |( !KeyWord ~ Command )}
+Statement  = { StatementLet | Block |Path|( !KeyWord ~ StatementCmd )}
 Statements = { Statement ~ (Sep+ ~ Statement)* ~  Sep? }
 LoopBody   = { ((Break | Continue |Statement )~Sep+)+}
 Block      = _{ StatementFn
@@ -148,7 +152,7 @@ Block      = _{ StatementFn
               | StatementFor
               | StatementWhile }
 
-  Command = {Ident~(Literal|Eval)+}
+  StatementCmd = {Ident~(Literal|Eval)+}
 
   // Function syntax
   //
