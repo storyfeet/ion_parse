@@ -70,6 +70,7 @@ RangeStep = ${ ".." ~ RangeVal }
 Range = ${ RangeVal ~ ((RangeStep ~ RangeOp)|RangeOp) ~ RangeVal }
 
 
+Expression = {Eval | Literal}
 // TODO: glob, proc, brace (braces don't expand inside strings)
 //
 // glob: *, ?,
@@ -130,8 +131,8 @@ Literal = _{ LitFloat
 //
 // The aim here is to match the input value amount
 
-Assignment = { (Ident ~ Assign ~ (Eval | Literal))
-                | (Ident ~ Assignment ~ (Eval | Literal))}
+Assignment = { (Ident ~ Assign ~ Expression)
+                | (Ident ~ Assignment ~ Expression)}
 
 Assign = {AsAssign|IncAssign|DecAssign|MulAssign|DivAssign}
   AsAssign    = { "=" }
@@ -153,7 +154,7 @@ Block      = _{ StatementFn
               | StatementFor
               | StatementWhile }
 
-  StatementCmd = {Ident~(Literal|Eval)+}
+  StatementCmd = {Ident~Expression+}
 
   // Function syntax
   //
@@ -182,16 +183,15 @@ Block      = _{ StatementFn
 
   StatementMatch = { Match ~ Eval ~ Sep ~ Cases ~ End }
     Cases         = { StatementCase* }
-    StatementCase = { (Case ~ "_" | Case ~ (Literal | Eval))
+    StatementCase = { (Case ~ "_" | Case ~ Expression)
                       ~ Sep ~ Statements? }
 
   // TODO: `Predicate` + LogicOps
-  StatementIf = { If ~ Pred ~ Sep ~ Statements?
+  StatementIf = { If ~ Expression ~ Sep ~ Statements?
                 ~ StatementElseIf*
                 ~ StatementElse?
                 ~ End }
-    Pred            = { Eval }
-    StatementElseIf = { ElseIf ~ Pred ~ Sep ~ Statements? }
+    StatementElseIf = { ElseIf ~ Expression ~ Sep ~ Statements? }
     StatementElse   = { Else ~ Sep ~ Statements? }
 
   // TODO: do not use Ident

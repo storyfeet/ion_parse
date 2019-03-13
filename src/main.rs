@@ -51,9 +51,11 @@ mod tests {
             (Rule::Main, "for x in 0..4;echo $x; end;"),
             (Rule::Statement, "for x in 0..4\n echo $x\n end"),
             (
-                Rule::Statement,
-                "for x y hotel in 0..100\n let b = \"$(x)oo\";echo b; end",
+                Rule::Main,
+                "for x y hotel in 0..100;let b = \"$(x)oo\";echo b; end",
             ),
+            (Rule::Main, "for x y hotel in 0..100\n end"),
+            (Rule::Statement, r#"let b = "$(x)oo""#),
             (Rule::Main, "mayfail -p hello && isok"),
             (Rule::Main, "mayfail p hello && isok"),
             (Rule::Statement, "echo $build(3 5 9)"),
