@@ -45,6 +45,7 @@ mod tests {
     fn should_pass() {
         let v = vec![
             (Rule::Main, "let x = 4"),
+            (Rule::Main, "let x y = 4 5"),
             (Rule::Statement, "echo $x"),
             (Rule::Main, "echo $x"),
             (Rule::Main, "for x in 0..4;echo $x; end;"),
@@ -89,6 +90,10 @@ mod tests {
     fn should_fail() {
         let v = vec![
             (Rule::Main, "let x & 4"),
+            (Rule::Main, "let x y = 3"),
+            (Rule::Main, "let x y z = 3 4"),
+            (Rule::Main, "let x = 3 4"),
+            (Rule::Main, "let x y z = 3 4 5 2"),
             (Rule::Main, "for x in ls -l; echo $x; end;"),
             (Rule::Statement, "for x in [0..4]\n echo $x\n end;"),
             (Rule::Range, "[0..Green]"),

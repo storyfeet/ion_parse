@@ -128,12 +128,13 @@ Literal = _{ LitFloat
 //
 // For more on assignments read the `let` statement description.
 //
-Assignment = _{ (Assign
-                | IncAssign
-                | DecAssign
-                | MulAssign
-                | DivAssign) ~ (Eval | Literal) }
-  Assign    = { "=" }
+// The aim here is to match the input value amount
+
+Assignment = { (Ident ~ Assign ~ (Eval | Literal))
+                | (Ident ~ Assignment ~ (Eval | Literal))}
+
+Assign = {AsAssign|IncAssign|DecAssign|MulAssign|DivAssign}
+  AsAssign    = { "=" }
   IncAssign = { "+=" }
   DecAssign = { "-=" }
   MulAssign = { "*=" }
@@ -175,7 +176,9 @@ Block      = _{ StatementFn
   // let y[0] = "hello"
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // TODO: indexed assignment rule
-  StatementLet = { Let ~ Variables ~ Assignment }
+  // Assuming += work with multi assignment
+
+  StatementLet = { Let ~ Assignment }
 
   StatementMatch = { Match ~ Eval ~ Sep ~ Cases ~ End }
     Cases         = { StatementCase* }
