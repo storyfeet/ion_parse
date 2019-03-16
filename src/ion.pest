@@ -6,6 +6,7 @@ alpha      = _{ 'a'..'z' | 'A'..'Z' | "_"| "-" }
 digit      = _{ '0'..'9' }
 Escape     = {"\\" ~ ANY}
 Comment    = { "#"* ~ ANY* ~ "\n" }
+Special = {"@"|"$"|"#"|Sep}
 
 // Keyword definitions
 KeyWord = _{ End
@@ -99,6 +100,7 @@ Literal = _{ LitFloat
            | LitBool
            | LitStr
            | LitArrayLike
+           | LitUntyped
            }
   LitInt     = ${ Sign ~ digit+ }
   LitFloat   = ${ Sign ~ (digit* ~ FloatSep ~ FloatFrac+
@@ -106,8 +108,7 @@ Literal = _{ LitFloat
   LitBool    = ${ "false" | "true" }
   // TODO: DQUOTE str shouldn't be ANY, see StringEval
   LitStr     = ${ ("\"" ~ ANY* ~ "\"" | "'" ~ ANY* ~ "'") }
-  LitUntyped = ${ (!Sep ~ ANY)+ }
-  //Not sure Literal Untyped makes sense, it will pass anything and that will be hard to use
+  LitUntyped = ${ (!Special ~ !WHITESPACE ~ (ANY|Escape))+ }
 
 // TODO: lit map, probably untyped
   LitArrayLike = _{ LitMap | LitArray | UntypedArray }

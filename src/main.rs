@@ -48,6 +48,7 @@ mod tests {
             (Rule::Main, "let x y = 4 5"),
             (Rule::Statement, "echo $x"),
             (Rule::Main, "echo $x"),
+            (Rule::Statement, "echo \"b\""),
             (Rule::Main, "for x in 0..4;echo $x; end;"),
             (Rule::Statement, "for x in 0..4\n echo $x\n end"),
             (
